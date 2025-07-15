@@ -42,7 +42,7 @@ fn main() {
             ..default()
         }))
         .add_systems(Startup, (setup_scene, setup_camera ))
-        .add_systems(Update, (draw_grid))
+        .add_systems(Update, (draw_grid,draw_rays))
         .add_systems(Update, (move_point).chain())
         .add_systems(Update, (move_player,rotate_player).chain())
         .run();
@@ -186,16 +186,16 @@ fn draw_rays(
     player: Single<&mut Player, With<Player>>,
     mut gizmos:Gizmos,
 ){
-    let plane: Vec2 = player.dir.perp();
+    // let plane: Vec2 = player.dir.perp();
     
     //gizmos.ray_2d(player_transform.translation.truncate()+(player.dir+plane)*50., (-plane)*100. ,LinearRgba::gray(0.7) );
-    for i in 0..WIDTH{
-        let mut new_dir:Vec2 = (-plane + ((plane/WIDTH as f32)*2. * i as f32 ))+player.dir;
-        
-        gizmos.ray_2d(player_transform.translation.truncate(),new_dir*MAX_DISTANCE  ,LinearRgba::gray(0.7) );
+    // for i in 0..WIDTH{
+        // let mut new_dir:Vec2 = (-plane + ((plane/WIDTH as f32)*2. * i as f32 ))+player.dir;
+        println!("{}",cast_ray(player_transform.translation.truncate(),player.dir));
+        gizmos.ray_2d(player_transform.translation.truncate(),player_transform.translation.truncate()*cast_ray(player_transform.translation.truncate(), player.dir)  ,LinearRgba::gray(0.7) );
       //gizmos.ray_2d(player_transform.translation.truncate(),(plane+player.dir)*MAX_DISTANCE  ,LinearRgba::gray(0.7) );
       //gizmos.ray_2d(player_transform.translation.truncate(),(-plane+player.dir)*MAX_DISTANCE  ,LinearRgba::gray(0.7) );    
-    }
+    // }
 }
 
 fn get_cords(pos : Vec2) -> Vec2{
@@ -206,19 +206,36 @@ fn get_map_cords(pos:Vec2) -> Vec2{
  Vec2 { x:(pos.x/WALL_SIZE).ceil()-1.0, y:MAP_SIZE as f32 - ((pos.y/WALL_SIZE).ceil())}
 }
 
-// fn cast_ray(dir :Vec2, mut player: Single<&mut Transform, With<Player>>)-> f32{
-    
-// }
-
-
-fn find_point(dir :Vec2, mut player: Single<&Transform, (With<Player>)>){
- 
+fn cast_ray(player_pos:Vec2,ray_dir:Vec2)-> f32{
+    let mut dx = 0;
+    let mut dy = 0;
+    let mut ixstep = 0.;
+    let mut iystep = 0.;
+    if ray_dir.x > 0. {
+        ixstep  = get_cords(player_pos).x*WALL_SIZE - player_pos.x;   
+    }else{
+        ixstep = player_pos.x - (get_cords(player_pos).x-1.)*WALL_SIZE;
+    } 
+    if ray_dir.y > 0. {
+        iystep = get_cords(player_pos).y*WALL_SIZE - player_pos.y;
+    }else{
+        iystep = player_pos.y - (get_cords(player_pos).y-1.)*WALL_SIZE;
+    }
+    let sx = sqrt(WALL_SIZE.powf(2.) + (iystep/ixstep)*(iystep/ixstep));
+    let sy = sqrt(WALL_SIZE.powf(2.) + (ixstep/iystep)*(ixstep/iystep));
+    if sx>sy {
+        sy
+    }else{
+        sx
+    }
 }
+
 
 fn move_point(
     player_trans: Single<&mut Transform, (With<Player>, Without<Point>)>,
     mut point: Single<&mut Transform, (With<Point>, Without<Player>)>,
     player_veiw: Single<&mut Player, With<Player>>,
 ) {
-    point.translation = player_trans.translation + player_veiw.dir.extend(0.) * 10.
+    // println!("{}",{get_cords(player_trans.translation.truncate())});
+    point.translation = player_trans.translation + player_veiw.dir.extend(0.) * cast_ray(player_trans.translation, player_veiw.dir)
 }
